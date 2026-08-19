@@ -1,0 +1,22 @@
+{
+  "name": "local-subtitles-extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "On-device live subtitles for browser tab audio using Moonshine Tiny Streaming.",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "check": "node scripts/check.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "verify": "npm run check && npm test && npm run build && node scripts/verify-build.mjs",
+    "package": "npm run verify && node scripts/package.mjs"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@resvg/resvg-js": "2.6.2",
+    "esbuild": "0.25.9"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

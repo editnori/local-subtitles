@@ -1,0 +1,27 @@
+/**
+ * @moonshine-ai/moonshine-wasm — WebAssembly binding for Moonshine Voice.
+ * Mirrors the object model of the Python, Swift, and Android bindings.
+ *
+ * The three entry points are {@link AgentFlow} for voice interfaces,
+ * {@link MicTranscriber} for live transcription, and {@link TextToSpeech} for
+ * speech synthesis and voice cloning. Each is constructed with `new`,
+ * configured with chainable setters, and prepared with a single `await load()`.
+ *
+ * {@link Transcriber}, {@link Stream}, {@link GraphemeToPhonemizer}, and
+ * {@link AssetDownloader} are the lower-level pieces those are built from, for
+ * applications that need them directly.
+ */
+export { loadMoonshineModule, resetMoonshineModule, } from './module.js';
+export { MoonshineError, MoonshineUnknownError, MoonshineInvalidHandleError, MoonshineInvalidArgumentError, MoonshineDownloadError, MoonshineErrorCode, } from './errors.js';
+export { ModelArch, TranscribeFlags, modelArchToString, stringToModelArch, } from './enums.js';
+export { AssetDownloader, } from './asset-downloader.js';
+export { Transcriber, } from './transcriber.js';
+export { Stream, DEFAULT_UPDATE_INTERVAL } from './stream.js';
+export { MicTranscriber } from './mic-transcriber.js';
+export { SttWorkerHost, sttWorkerSupported, } from './stt-worker-host.js';
+// Only usable if the module was built with TTS support.
+export { TextToSpeech, splitSayUtterances, } from './text-to-speech.js';
+export { VoiceClone, extractSpeechClip, } from './voice-clone.js';
+export { GraphemeToPhonemizer, } from './grapheme-to-phonemizer.js';
+export { AgentFlow, Dialog, DialogCancelled, DialogRestart, DialogNoMatch, spellOut, } from './agent-flow.js';
+//# sourceMappingURL=index.js.map
