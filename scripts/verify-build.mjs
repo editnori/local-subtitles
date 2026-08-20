@@ -14,8 +14,16 @@ const required = [
   "offscreen.html",
   "offscreen.js",
   "audio-worklet.js",
-  "vendor/moonshine/index.js",
+  "vendor/moonshine/asset-downloader.js",
+  "vendor/moonshine/enums.js",
+  "vendor/moonshine/errors.js",
+  "vendor/moonshine/events.js",
+  "vendor/moonshine/module.js",
+  "vendor/moonshine/stream.js",
+  "vendor/moonshine/stt-worker-host.js",
   "vendor/moonshine/stt-worker.js",
+  "vendor/moonshine/transcriber.js",
+  "vendor/moonshine/types.js",
   "vendor/moonshine/moonshine.mjs",
   "vendor/moonshine/moonshine.wasm",
   "vendor/moonshine/BUILD_RECEIPT.md",
@@ -28,8 +36,22 @@ const required = [
 
 for (const file of required) await access(resolve(dist, file));
 
+// The unused TTS, voice-clone, embedding, and agent modules must stay out of
+// the shipped extension.
+for (const excluded of [
+  "vendor/moonshine/index.js",
+  "vendor/moonshine/text-to-speech.js",
+  "vendor/moonshine/tts-worker.js",
+  "vendor/moonshine/voice-clone.js",
+  "vendor/moonshine/embedding-model.js",
+  "vendor/moonshine/agent-flow.js"
+]) {
+  const present = await access(resolve(dist, excluded)).then(() => true, () => false);
+  if (present) throw new Error(`Build shipped an unused Moonshine module: ${excluded}`);
+}
+
 const manifest = JSON.parse(await readFile(resolve(dist, "manifest.json"), "utf8"));
-if (manifest.version !== "0.2.0") throw new Error("Unexpected build version.");
+if (manifest.version !== "0.3.0") throw new Error("Unexpected build version.");
 
 const wasm = await stat(resolve(dist, "vendor/moonshine/moonshine.wasm"));
 if (wasm.size < 10_000_000) throw new Error("Moonshine WASM artifact is incomplete.");

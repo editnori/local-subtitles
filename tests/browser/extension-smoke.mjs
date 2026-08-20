@@ -165,7 +165,10 @@ async function runEngineCheck(page, runtimeBaseUrl) {
       audio[index] = int16[index] / 32768;
     }
 
-    const { ModelArch, SttWorkerHost } = await import(`${runtimeBaseUrl}index.js`);
+    const [{ ModelArch }, { SttWorkerHost }] = await Promise.all([
+      import(`${runtimeBaseUrl}enums.js`),
+      import(`${runtimeBaseUrl}stt-worker-host.js`)
+    ]);
     console.log("[engine] runtime imported");
     const host = new SttWorkerHost();
     console.log("[engine] STT worker created");
@@ -275,7 +278,7 @@ async function runModuleCheck(page, runtimeBaseUrl) {
     console.log(`[module] browser reports ${navigator.hardwareConcurrency} logical CPUs`);
     const [{ default: createMoonshineModule }, { ModelArch }] = await Promise.all([
       import(`${runtimeBaseUrl}moonshine.mjs`),
-      import(`${runtimeBaseUrl}index.js`)
+      import(`${runtimeBaseUrl}enums.js`)
     ]);
     const started = performance.now();
     const module = await Promise.race([
@@ -429,6 +432,22 @@ try {
     return host?.shadowRoot?.querySelector(".caption")?.textContent.includes("best of times");
   });
   console.log("browser: subtitle overlay received text");
+
+  await worker.evaluate(
+    ({ tabId }) => chrome.tabs.sendMessage(tabId, {
+      type: "CAPTION_UPDATE",
+      text: "It was the age of wisdom.",
+      final: true,
+      lineId: "browser-smoke-2"
+    }, { frameId: 0 }),
+    { tabId: videoTabId }
+  );
+  await videoPage.waitForFunction(() => {
+    const shadow = document.querySelector("[data-local-subtitles-root]")?.shadowRoot;
+    return shadow?.querySelector(".cap-prev")?.textContent.includes("best of times") &&
+      shadow?.querySelector(".cap-now")?.textContent.includes("age of wisdom");
+  });
+  console.log("browser: finished line rolled up while the next line rendered");
   const overlay = await videoPage.evaluate(() => {
     const video = document.querySelector("video").getBoundingClientRect();
     const host = document.querySelector("[data-local-subtitles-root]");
@@ -455,6 +474,17 @@ try {
     return host?.shadowRoot?.querySelector(".shell")?.dataset.size === "large";
   });
   console.log("browser: large caption setting reached the overlay");
+
+  await popup.evaluate(() => document.querySelector('#modelControl button[data-value="small"]').click());
+  await popup.waitForFunction(() =>
+    document.querySelector("#modelHint")?.textContent.includes("165 MB") &&
+    document.querySelector("#headMeta")?.textContent === "Moonshine Small · English"
+  );
+  await popup.evaluate(() => document.querySelector('#modelControl button[data-value="tiny"]').click());
+  await popup.waitForFunction(() =>
+    document.querySelector("#headMeta")?.textContent === "Moonshine Tiny · English"
+  );
+  console.log("browser: model choice updates the hint and header");
 
   await popup.setViewport({ width: 320, height: 680 });
   const narrow = await popup.evaluate(() => ({

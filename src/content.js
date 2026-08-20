@@ -12,6 +12,9 @@ let activeVideo = null;
 let host;
 let shell;
 let caption;
+let previousLine;
+let currentLine;
+let currentLineId = "";
 let statusPill;
 let progressBar;
 let clearTimer;
@@ -219,11 +222,12 @@ function ensureOverlay() {
       transition: width 160ms ease;
     }
     .caption {
-      display: -webkit-box;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
       max-width: 100%;
+      max-height: calc(3 * 1.32em + .73em);
       overflow: hidden;
-      -webkit-box-orient: vertical;
-      -webkit-line-clamp: 2;
       padding: .33em .62em .4em;
       border-radius: 12px;
       color: white;
@@ -235,14 +239,15 @@ function ensureOverlay() {
       font-weight: 600;
       line-height: 1.32;
       letter-spacing: -.018em;
-      text-wrap: balance;
       text-shadow: 0 1px 2px rgb(0 0 0 / .5);
       opacity: 0;
       transform: translateY(8px) scale(.985);
       transition: opacity 140ms ease, transform 200ms cubic-bezier(.22, 1, .36, 1);
     }
     .caption.is-visible { opacity: 1; transform: none; }
-    .caption[data-partial="true"] { color: rgb(255 255 255 / .82); }
+    .caption div { flex: none; text-wrap: balance; }
+    .cap-prev:empty { display: none; }
+    .cap-now.is-partial { color: rgb(255 255 255 / .82); }
     .shell[data-size="small"] .caption { font-size: clamp(15px, 2.5vw, 26px); }
     .shell[data-size="large"] .caption { font-size: clamp(22px, 3.8vw, 42px); }
     @media (max-width: 520px) {
@@ -278,6 +283,11 @@ function ensureOverlay() {
   caption.setAttribute("role", "status");
   caption.setAttribute("aria-live", "polite");
   caption.setAttribute("aria-atomic", "true");
+  previousLine = document.createElement("div");
+  previousLine.className = "cap-prev";
+  currentLine = document.createElement("div");
+  currentLine.className = "cap-now";
+  caption.append(previousLine, currentLine);
 
   stack.append(statusPill, caption);
   shell.append(stack);
@@ -315,7 +325,13 @@ function setNativeTrackMode(video, mode) {
   if (record) record.track.mode = mode;
 }
 
-function syncNativeCaption(text = caption?.textContent ?? "") {
+function overlayText() {
+  return [previousLine?.textContent, currentLine?.textContent]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function syncNativeCaption(text = overlayText()) {
   if (!activeVideo || !shouldUseNativeTrack()) return;
   const Cue = globalThis.VTTCue;
   if (!Cue) return;
@@ -417,10 +433,18 @@ function showCaption(message) {
   clearTimeout(clearTimer);
   clearTimeout(statusTimer);
   statusPill.classList.remove("is-visible");
-  caption.textContent = text;
-  caption.dataset.partial = String(!message.final);
+
+  // A new line id rolls the finished line up one slot so it stays readable
+  // while the next line forms below it.
+  const lineId = String(message.lineId ?? "");
+  if (lineId !== currentLineId) {
+    previousLine.textContent = currentLine.textContent;
+    currentLineId = lineId;
+  }
+  currentLine.textContent = text;
+  currentLine.classList.toggle("is-partial", !message.final);
   caption.classList.add("is-visible");
-  syncNativeCaption(text);
+  syncNativeCaption();
   positionOverlay();
   keepOverlayAligned();
 
@@ -432,7 +456,9 @@ function clearCaption() {
   clearTimeout(statusTimer);
   if (caption) {
     caption.classList.remove("is-visible");
-    caption.textContent = "";
+    previousLine.textContent = "";
+    currentLine.textContent = "";
+    currentLineId = "";
   }
   if (statusPill) statusPill.classList.remove("is-visible");
   for (const video of collectVideos()) setNativeTrackMode(video, "hidden");

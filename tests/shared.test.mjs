@@ -19,14 +19,16 @@ test("settings keep supported values and clamp background opacity", () => {
       captionPosition: "raised",
       backgroundOpacity: 120,
       showPartials: false,
-      theme: "dark"
+      theme: "dark",
+      modelArch: "small"
     }),
     {
       captionSize: "large",
       captionPosition: "raised",
       backgroundOpacity: 94,
       showPartials: false,
-      theme: "dark"
+      theme: "dark",
+      modelArch: "small"
     }
   );
 });
@@ -38,7 +40,8 @@ test("invalid settings return the maintained defaults", () => {
       captionPosition: "left",
       backgroundOpacity: "none",
       showPartials: "yes",
-      theme: "blue"
+      theme: "blue",
+      modelArch: "huge"
     }),
     DEFAULT_SETTINGS
   );
@@ -72,8 +75,8 @@ test("stale and hidden video frames fall back to the top page", () => {
 
 test("caption lifetime gives final text a bounded reading window", () => {
   assert.equal(captionLifetime("forming", false), 1800);
-  assert.equal(captionLifetime("short final", true), 2800);
-  assert.equal(captionLifetime("x".repeat(300), true), 7000);
+  assert.equal(captionLifetime("short final", true), 3000);
+  assert.equal(captionLifetime("x".repeat(300), true), 8000);
 });
 
 test("runtime state rejects invalid numeric values", () => {

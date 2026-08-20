@@ -1,4 +1,5 @@
 import {
+  CATCH_UP_MESSAGE,
   DEFAULT_SETTINGS,
   IDLE_STATE,
   normalizeSettings,
@@ -16,9 +17,24 @@ const ACTIVE_PHASES = new Set([
   "listening",
   "stopping"
 ]);
+const MODEL_INFO = {
+  tiny: {
+    label: "Tiny",
+    hint: "51 MB one-time download. Fastest, and the safe choice for phones."
+  },
+  small: {
+    label: "Small",
+    hint: "165 MB one-time download. More accurate, and needs a faster device."
+  },
+  medium: {
+    label: "Medium",
+    hint: "305 MB one-time download. Most accurate, for fast devices."
+  }
+};
 
 const elements = {
   card: document.getElementById("listenCard"),
+  headMeta: document.getElementById("headMeta"),
   primaryStatus: document.getElementById("primaryStatus"),
   statusDetail: document.getElementById("statusDetail"),
   download: document.getElementById("download"),
@@ -29,6 +45,8 @@ const elements = {
   toggle: document.getElementById("toggleButton"),
   size: document.getElementById("sizeControl"),
   position: document.getElementById("positionControl"),
+  model: document.getElementById("modelControl"),
+  modelHint: document.getElementById("modelHint"),
   opacity: document.getElementById("opacityControl"),
   opacityValue: document.getElementById("opacityValue"),
   partial: document.getElementById("partialControl"),
@@ -74,6 +92,11 @@ function detailText() {
     return "Almost ready. Audio stays on this device.";
   }
   if (state.phase === "listening") {
+    if (state.message === CATCH_UP_MESSAGE) {
+      return settings.modelArch === "tiny"
+        ? "The device fell behind; subtitles resume as it catches up."
+        : "If this keeps happening, pick a smaller model below.";
+    }
     return state.videoDetected
       ? "Subtitles follow the largest playing video."
       : "No video found yet, so subtitles will use the bottom of the page.";
@@ -124,6 +147,10 @@ function render() {
 
   setPressed(elements.size, settings.captionSize);
   setPressed(elements.position, settings.captionPosition);
+  setPressed(elements.model, settings.modelArch);
+  const model = MODEL_INFO[settings.modelArch];
+  elements.modelHint.textContent = model.hint;
+  elements.headMeta.textContent = `Moonshine ${model.label} · English`;
   elements.opacity.value = String(settings.backgroundOpacity);
   elements.opacityValue.value = `${settings.backgroundOpacity}%`;
   elements.partial.checked = settings.showPartials;
@@ -219,6 +246,7 @@ async function loadInitialState() {
 
 bindSegmented(elements.size, "captionSize");
 bindSegmented(elements.position, "captionPosition");
+bindSegmented(elements.model, "modelArch");
 
 elements.opacity.addEventListener("input", () => {
   elements.opacityValue.value = `${elements.opacity.value}%`;

@@ -3,8 +3,12 @@ export const DEFAULT_SETTINGS = Object.freeze({
   captionPosition: "low",
   backgroundOpacity: 76,
   showPartials: true,
-  theme: "system"
+  theme: "system",
+  modelArch: "tiny"
 });
+
+export const LIVE_MESSAGE = "Subtitles are live";
+export const CATCH_UP_MESSAGE = "Catching up to the video";
 
 export const IDLE_STATE = Object.freeze({
   phase: "idle",
@@ -20,6 +24,7 @@ export const IDLE_STATE = Object.freeze({
 const CAPTION_SIZES = new Set(["small", "medium", "large"]);
 const CAPTION_POSITIONS = new Set(["low", "raised"]);
 const THEMES = new Set(["light", "dark", "system"]);
+const MODEL_ARCHS = new Set(["tiny", "small", "medium"]);
 
 export function normalizeSettings(value = {}) {
   const opacity = Number(value.backgroundOpacity);
@@ -37,7 +42,10 @@ export function normalizeSettings(value = {}) {
       typeof value.showPartials === "boolean"
         ? value.showPartials
         : DEFAULT_SETTINGS.showPartials,
-    theme: THEMES.has(value.theme) ? value.theme : DEFAULT_SETTINGS.theme
+    theme: THEMES.has(value.theme) ? value.theme : DEFAULT_SETTINGS.theme,
+    modelArch: MODEL_ARCHS.has(value.modelArch)
+      ? value.modelArch
+      : DEFAULT_SETTINGS.modelArch
   };
 }
 
@@ -71,7 +79,7 @@ export function selectCaptionFrame(candidates, now = Date.now()) {
 export function captionLifetime(text, final) {
   if (!final) return 1800;
   const readingTime = String(text).trim().length * 58;
-  return Math.min(7000, Math.max(2800, readingTime));
+  return Math.min(8000, Math.max(3000, readingTime));
 }
 
 export function shouldPublishProgress({

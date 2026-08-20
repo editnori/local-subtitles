@@ -4,7 +4,7 @@ import { spawnSync } from "node:child_process";
 
 const root = resolve(import.meta.dirname, "..");
 const artifacts = resolve(root, "artifacts");
-const archive = resolve(artifacts, "local-subtitles-0.2.0.zip");
+const archive = resolve(artifacts, "local-subtitles-0.3.0.zip");
 
 await mkdir(artifacts, { recursive: true });
 await rm(archive, { force: true });

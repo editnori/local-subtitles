@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Local Subtitles",
   "short_name": "Subtitles",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Creates private, on-device English subtitles for audio playing in the current tab.",
   "minimum_chrome_version": "116",
   "permissions": [

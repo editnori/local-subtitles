@@ -87,6 +87,25 @@
         </label>
       </section>
 
+      <section class="settings" aria-labelledby="modelTitle">
+        <div class="section-head">
+          <div>
+            <h2 id="modelTitle">Speech model</h2>
+            <p>Applies the next time subtitles start.</p>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <span class="setting-label">Model</span>
+          <div class="segmented" id="modelControl" role="group" aria-label="Speech model">
+            <button type="button" data-value="tiny" aria-pressed="true">Tiny</button>
+            <button type="button" data-value="small" aria-pressed="false">Small</button>
+            <button type="button" data-value="medium" aria-pressed="false">Medium</button>
+          </div>
+        </div>
+        <p class="model-hint" id="modelHint">51 MB one-time download. Fastest, and the safe choice for phones.</p>
+      </section>
+
       <details class="privacy">
         <summary>
           <span class="privacy-icon" aria-hidden="true">
@@ -96,8 +115,8 @@
           <svg class="icon chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg>
         </summary>
         <div class="privacy-body">
-          <p>The extension captures the sound already playing in this tab and sends it only to the local Moonshine Tiny Streaming engine, a 34 million parameter model running as WebAssembly on this device.</p>
-          <p>The 52 MB English model downloads once from Moonshine AI and stays in the browser cache. No tab audio, transcript, account, or analytics data is uploaded.</p>
+          <p>The extension captures the sound already playing in this tab and sends it only to the local Moonshine engine, which runs as WebAssembly on this device.</p>
+          <p>The English model you pick downloads once from Moonshine AI and stays in the browser cache. No tab audio, transcript, account, or analytics data is uploaded.</p>
         </div>
       </details>
     </main>

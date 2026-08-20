@@ -2,7 +2,7 @@
 
 Local Subtitles captures audio from the active Chrome tab, transcribes it locally with Moonshine Streaming Tiny, and places live English subtitles over the largest playing video.
 
-The extension supports Chrome 116 and newer. Audio remains in the browser and is processed through single-thread SIMD WebAssembly. The first transcription downloads and caches a 51.4 MB model, so later runs reuse the local copy and can work offline.
+The extension supports Chrome 116 and newer. Audio remains in the browser and is processed through single-thread SIMD WebAssembly. The first transcription downloads and caches the selected English model, 51 MB for the default Tiny, so later runs reuse the local copy and can work offline.
 
 Site behavior can differ because the extension depends on Chrome tab capture and the page's video elements. Other browsers and videos without capturable tab audio are not supported targets.
 
@@ -15,7 +15,7 @@ npm run build
 
 Open `chrome://extensions`, enable Developer mode, choose Load unpacked, and select the generated `dist` directory. Play a video, open Local Subtitles from the toolbar, and press Start subtitles.
 
-`npm run package` also creates `artifacts/local-subtitles-0.2.0.zip` after running every maintained check.
+`npm run package` also creates `artifacts/local-subtitles-0.3.0.zip` after running every maintained check.
 
 ## What happens after Start subtitles
 
@@ -23,11 +23,11 @@ The popup asks Chrome for the current tab's audio stream. The service worker pas
 
 On the first run, transcription starts when the popup shows Subtitles are live; audio that played while the model was downloading is not replayed. Later runs open the cached model and go live much sooner.
 
-The page overlay uses a Shadow DOM so site styles cannot reshape it. When a browser puts the video element itself into native fullscreen, the content script switches the same text into a generated caption track because ordinary page overlays are hidden in that mode.
+The overlay keeps the finished line visible above the line that is still forming, so a completed sentence stays readable while the next one streams in. The page overlay uses a Shadow DOM so site styles cannot reshape it. When a browser puts the video element itself into native fullscreen, the content script switches the same text into a generated caption track because ordinary page overlays are hidden in that mode.
 
 ## Runtime choice
 
-The default model is [Moonshine Tiny Streaming](https://huggingface.co/UsefulSensors/moonshine-streaming-tiny), a current 34 million parameter streaming speech model. The extension uses Moonshine's current [JavaScript and WebAssembly binding](https://github.com/moonshine-ai/moonshine/tree/main/language-bindings/wasm) rather than the older segment-at-a-time Moonshine or Whisper browser demos. A dedicated module worker performs incremental CPU inference with WebAssembly SIMD while a separate AudioWorklet keeps captured audio moving.
+The default model is [Moonshine Tiny Streaming](https://huggingface.co/UsefulSensors/moonshine-streaming-tiny), a current 34 million parameter streaming speech model. The popup's Speech model setting can switch to Small Streaming (165 MB download) or Medium Streaming (305 MB download) on devices fast enough to keep up; the runtime's English catalog offers exactly these three streaming sizes, and the change applies the next time subtitles start. When a session falls behind, the popup shows a catch-up notice and, on a larger model, suggests picking a smaller one. The extension uses Moonshine's current [JavaScript and WebAssembly binding](https://github.com/moonshine-ai/moonshine/tree/main/language-bindings/wasm) rather than the older segment-at-a-time Moonshine or Whisper browser demos. A dedicated module worker performs incremental CPU inference with WebAssembly SIMD while a separate AudioWorklet keeps captured audio moving.
 
 The vendored native runtime uses Moonshine's supported single-thread build. The upstream pthread build initialized over a normal cross-origin-isolated HTTP page but did not finish native initialization under the tested `chrome-extension://` origin. Keeping one SIMD inference thread inside the existing speech worker removes that extension-only deadlock and avoids a pool of native workers on mobile devices. The exact source commit, toolchain, flags, and hashes are in `vendor/moonshine-single-thread/BUILD_RECEIPT.md`.
 

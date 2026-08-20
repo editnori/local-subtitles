@@ -28,7 +28,7 @@ for (const [entry, format] of entries) {
     format,
     platform: "browser",
     target: "chrome116",
-    external: ["./vendor/moonshine/index.js"],
+    external: ["./vendor/moonshine/*"],
     legalComments: "none",
     sourcemap: false
   });
@@ -44,11 +44,32 @@ for (const file of [
   await cp(resolve(source, file), resolve(output, file));
 }
 
-await cp(
-  resolve(root, "vendor/moonshine-single-thread"),
-  resolve(output, "vendor/moonshine"),
-  { recursive: true }
-);
+// Ship only the speech-to-text import closure. The vendored build also
+// contains TTS, voice-clone, embedding, and agent modules the extension
+// never loads.
+const moonshineSttFiles = [
+  "asset-downloader.js",
+  "enums.js",
+  "errors.js",
+  "events.js",
+  "module.js",
+  "moonshine.mjs",
+  "moonshine.wasm",
+  "stream.js",
+  "stt-worker-host.js",
+  "stt-worker.js",
+  "transcriber.js",
+  "types.js",
+  "BUILD_RECEIPT.md",
+  "LICENSE"
+];
+await mkdir(resolve(output, "vendor/moonshine"), { recursive: true });
+for (const file of moonshineSttFiles) {
+  await cp(
+    resolve(root, "vendor/moonshine-single-thread", file),
+    resolve(output, "vendor/moonshine", file)
+  );
+}
 
 const iconSvg = await readFile(resolve(source, "icons/icon.svg"), "utf8");
 for (const size of [16, 32, 48, 128]) {

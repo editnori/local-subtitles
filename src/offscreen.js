@@ -1,11 +1,21 @@
+import { ModelArch } from "./vendor/moonshine/enums.js";
+import { SttWorkerHost } from "./vendor/moonshine/stt-worker-host.js";
 import {
-  ModelArch,
-  SttWorkerHost
-} from "./vendor/moonshine/index.js";
-import { catchUpTransition, shouldPublishProgress } from "./shared.js";
+  CATCH_UP_MESSAGE,
+  DEFAULT_SETTINGS,
+  LIVE_MESSAGE,
+  catchUpTransition,
+  normalizeSettings,
+  shouldPublishProgress
+} from "./shared.js";
 
 const TRANSCRIBER_ID = "local-subtitles-model";
 const STREAM_ID = "active-tab-audio";
+const MODEL_ARCHS = {
+  tiny: ModelArch.TinyStreaming,
+  small: ModelArch.SmallStreaming,
+  medium: ModelArch.MediumStreaming
+};
 
 let activeTabId = null;
 let mediaStream;
@@ -104,7 +114,7 @@ function emitTranscript(line, final) {
   });
 }
 
-async function prepareModel() {
+async function prepareModel(modelArch) {
   if (typeof WebAssembly === "undefined" || typeof Worker === "undefined") {
     throw new Error("This browser does not provide the WebAssembly worker runtime.");
   }
@@ -130,7 +140,7 @@ async function prepareModel() {
 
   await workerHost.loadTranscriber({
     transcriberId: TRANSCRIBER_ID,
-    modelArch: ModelArch.TinyStreaming,
+    modelArch,
     source: { kind: "catalog", language: "en" }
   });
 
@@ -162,7 +172,7 @@ function connectAudioToModel() {
     const wasBehind = behind;
     behind = catchUpTransition(workerHost.queuedSeconds(STREAM_ID), behind);
     if (behind !== wasBehind) {
-      void status("listening", behind ? "Catching up to the video" : "Subtitles are live");
+      void status("listening", behind ? CATCH_UP_MESSAGE : LIVE_MESSAGE);
     }
 
     workerHost.addAudio(STREAM_ID, data, audioContext.sampleRate);
@@ -184,11 +194,13 @@ async function startSession({ tabId, streamId }) {
   await status("capturing", "Opening this tab's audio");
 
   try {
+    const stored = await chrome.storage.local.get("settings");
+    const settings = normalizeSettings(stored.settings ?? DEFAULT_SETTINGS);
     await openTabAudio(streamId);
-    await prepareModel();
+    await prepareModel(MODEL_ARCHS[settings.modelArch]);
     connectAudioToModel();
     acceptingAudio = true;
-    await status("listening", "Subtitles are live", {
+    await status("listening", LIVE_MESSAGE, {
       progress: null,
       error: ""
     });
