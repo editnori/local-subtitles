@@ -2,7 +2,7 @@ import {
   ModelArch,
   SttWorkerHost
 } from "./vendor/moonshine/index.js";
-import { shouldPublishProgress } from "./shared.js";
+import { catchUpTransition, shouldPublishProgress } from "./shared.js";
 
 const TRANSCRIBER_ID = "local-subtitles-model";
 const STREAM_ID = "active-tab-audio";
@@ -15,8 +15,6 @@ let captureNode;
 let workerHost;
 let acceptingAudio = false;
 let stopping = false;
-let lastQueueNotice = 0;
-let lastPassNotice = 0;
 let lastProgressNotice = 0;
 let lastProgressPercent = -1;
 let lastProgressFile = "";
@@ -102,11 +100,7 @@ function emitTranscript(line, final) {
     tabId: activeTabId,
     text,
     lineId,
-    final,
-    latencyMs:
-      typeof line?.lastTranscriptionLatencyMs === "number"
-        ? line.lastTranscriptionLatencyMs
-        : null
+    final
   });
 }
 
@@ -131,19 +125,7 @@ async function prepareModel() {
     lastProgressNotice = now;
     lastProgressPercent = percent;
     lastProgressFile = file;
-    void status("downloading", "Downloading the English model once", {
-      progress,
-      progressFile: file
-    });
-  };
-  workerHost.onPass = (_streamId, passMs) => {
-    if (!(passMs > 0)) return;
-    const now = performance.now();
-    if (now - lastPassNotice < 1200) return;
-    lastPassNotice = now;
-    void status("listening", "Creating subtitles on this device", {
-      passMs
-    });
+    void status("downloading", "Downloading the English model", { progress });
   };
 
   await workerHost.loadTranscriber({
@@ -152,10 +134,7 @@ async function prepareModel() {
     source: { kind: "catalog", language: "en" }
   });
 
-  await status("warming", "Preparing Moonshine Tiny Streaming", {
-    progress: null,
-    progressFile: ""
-  });
+  await status("warming", "Opening the cached model", { progress: null });
 
   await workerHost.createStream(TRANSCRIBER_ID, STREAM_ID, {
     updateInterval: 0.5,
@@ -176,15 +155,14 @@ async function prepareModel() {
 }
 
 function connectAudioToModel() {
+  let behind = false;
   captureNode.port.onmessage = ({ data }) => {
     if (!acceptingAudio || !workerHost || !(data instanceof Float32Array)) return;
 
-    const queued = workerHost.queuedSeconds(STREAM_ID);
-    if (queued > 2.5 && performance.now() - lastQueueNotice > 2500) {
-      lastQueueNotice = performance.now();
-      void status("listening", "The model is catching up to the video", {
-        passMs: null
-      });
+    const wasBehind = behind;
+    behind = catchUpTransition(workerHost.queuedSeconds(STREAM_ID), behind);
+    if (behind !== wasBehind) {
+      void status("listening", behind ? "Catching up to the video" : "Subtitles are live");
     }
 
     workerHost.addAudio(STREAM_ID, data, audioContext.sampleRate);
@@ -210,9 +188,8 @@ async function startSession({ tabId, streamId }) {
     await prepareModel();
     connectAudioToModel();
     acceptingAudio = true;
-    await status("listening", "Creating subtitles on this device", {
+    await status("listening", "Subtitles are live", {
       progress: null,
-      progressFile: "",
       error: ""
     });
   } catch (error) {

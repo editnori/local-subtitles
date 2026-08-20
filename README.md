@@ -15,13 +15,13 @@ npm run build
 
 Open `chrome://extensions`, enable Developer mode, choose Load unpacked, and select the generated `dist` directory. Play a video, open Local Subtitles from the toolbar, and press Start subtitles.
 
-`npm run package` also creates `artifacts/local-subtitles-0.1.0.zip` after running every maintained check.
+`npm run package` also creates `artifacts/local-subtitles-0.2.0.zip` after running every maintained check.
 
 ## What happens after Start subtitles
 
 The popup asks Chrome for the current tab's audio stream. The service worker passes that stream to an offscreen extension page, which restores audible playback and sends mono audio chunks to Moonshine's speech worker. The worker returns changing and completed transcript lines, and the service worker routes each line to the frame holding the largest playing video.
 
-On the first run, transcription starts when the popup reaches Listening; audio that played while the model was downloading is not replayed. Later runs open the cached model and reach Listening much sooner.
+On the first run, transcription starts when the popup shows Subtitles are live; audio that played while the model was downloading is not replayed. Later runs open the cached model and go live much sooner.
 
 The page overlay uses a Shadow DOM so site styles cannot reshape it. When a browser puts the video element itself into native fullscreen, the content script switches the same text into a generated caption track because ordinary page overlays are hidden in that mode.
 

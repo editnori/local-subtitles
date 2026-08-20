@@ -29,7 +29,7 @@ const required = [
 for (const file of required) await access(resolve(dist, file));
 
 const manifest = JSON.parse(await readFile(resolve(dist, "manifest.json"), "utf8"));
-if (manifest.version !== "0.1.0") throw new Error("Unexpected build version.");
+if (manifest.version !== "0.2.0") throw new Error("Unexpected build version.");
 
 const wasm = await stat(resolve(dist, "vendor/moonshine/moonshine.wasm"));
 if (wasm.size < 10_000_000) throw new Error("Moonshine WASM artifact is incomplete.");

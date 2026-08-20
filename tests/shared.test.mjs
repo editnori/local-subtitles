@@ -4,10 +4,9 @@ import assert from "node:assert/strict";
 import {
   DEFAULT_SETTINGS,
   captionLifetime,
-  formatBytes,
+  catchUpTransition,
   normalizeSettings,
   normalizeState,
-  phaseLabel,
   phaseTone,
   selectCaptionFrame,
   shouldPublishProgress
@@ -78,23 +77,23 @@ test("caption lifetime gives final text a bounded reading window", () => {
 });
 
 test("runtime state rejects invalid numeric values", () => {
-  const state = normalizeState({ tabId: 4.2, progress: 4, passMs: -1 });
+  const state = normalizeState({ tabId: 4.2, progress: 4 });
   assert.equal(state.tabId, null);
   assert.equal(state.progress, 1);
-  assert.equal(state.passMs, null);
 });
 
-test("phase labels and tones preserve the visible state meaning", () => {
-  assert.equal(phaseLabel("listening"), "Listening");
+test("phase tones preserve the visible state meaning", () => {
   assert.equal(phaseTone("listening"), "live");
   assert.equal(phaseTone("downloading"), "amber");
   assert.equal(phaseTone("error"), "coral");
+  assert.equal(phaseTone("idle"), "neutral");
 });
 
-test("byte formatting stays compact for model download UI", () => {
-  assert.equal(formatBytes(512), "512 B");
-  assert.equal(formatBytes(2048), "2 KB");
-  assert.equal(formatBytes(51_441_771), "49.1 MB");
+test("the catch-up notice enters late and leaves only once nearly drained", () => {
+  assert.equal(catchUpTransition(2.5, false), false);
+  assert.equal(catchUpTransition(2.6, false), true);
+  assert.equal(catchUpTransition(1.2, true), true);
+  assert.equal(catchUpTransition(0.7, true), false);
 });
 
 test("model progress publishes file changes and throttles repeated chunks", () => {

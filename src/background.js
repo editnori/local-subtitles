@@ -108,10 +108,8 @@ async function beginCapture({ tabId, tabTitle, streamId }) {
       tabId,
       tabTitle,
       progress: null,
-      progressFile: "",
       message: "Opening this tab's audio",
       error: "",
-      passMs: null,
       videoDetected: hasFreshVideo(tabId)
     });
 
@@ -221,24 +219,18 @@ async function dispatchCaption(message) {
     await sendToFrame(tabId, previousFrame, { type: "CAPTION_CLEAR" });
   }
 
-  const delivered = await sendToFrame(tabId, frameId, {
+  const payload = {
     type: "CAPTION_UPDATE",
     text: String(message.text ?? ""),
     final: Boolean(message.final),
-    lineId: String(message.lineId ?? ""),
-    latencyMs: Number.isFinite(message.latencyMs) ? message.latencyMs : null
-  });
+    lineId: String(message.lineId ?? "")
+  };
+  const delivered = await sendToFrame(tabId, frameId, payload);
 
   if (delivered) {
     lastCaptionFrame.set(tabId, frameId);
   } else if (frameId !== 0) {
-    await sendToFrame(tabId, 0, {
-      type: "CAPTION_UPDATE",
-      text: String(message.text ?? ""),
-      final: Boolean(message.final),
-      lineId: String(message.lineId ?? ""),
-      latencyMs: Number.isFinite(message.latencyMs) ? message.latencyMs : null
-    });
+    await sendToFrame(tabId, 0, payload);
     lastCaptionFrame.set(tabId, 0);
   }
 }
@@ -305,9 +297,7 @@ async function handleMessage(message, sender) {
         phase: message.phase,
         message: String(message.message ?? ""),
         progress: typeof message.progress === "number" ? message.progress : null,
-        progressFile: String(message.progressFile ?? ""),
-        error: String(message.error ?? ""),
-        passMs: typeof message.passMs === "number" ? message.passMs : runtimeState.passMs
+        error: String(message.error ?? "")
       });
       if (["capturing", "downloading", "warming", "listening"].includes(message.phase)) {
         await dispatchOverlayStatus(message);
@@ -316,9 +306,6 @@ async function handleMessage(message, sender) {
     }
     case "OFFSCREEN_TRANSCRIPT":
       await dispatchCaption(message);
-      if (typeof message.latencyMs === "number") {
-        await setState({ passMs: message.latencyMs });
-      }
       return { ok: true };
     case "OFFSCREEN_ENDED": {
       await loadState();

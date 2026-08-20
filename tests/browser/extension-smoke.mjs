@@ -355,7 +355,9 @@ try {
   console.log("browser: popup loaded with fixture active");
   await popup.setViewport({ width: 398, height: 720 });
   await popup.waitForSelector("#toggleButton");
-  await popup.waitForFunction(() => document.querySelector("#videoFact b")?.textContent === "Video found");
+  await popup.waitForFunction(() =>
+    document.querySelector("#statusDetail")?.textContent.includes("largest video is ready")
+  );
   console.log("browser: video detection visible in popup");
 
   const workerTarget = await browser.waitForTarget(
@@ -380,7 +382,11 @@ try {
       duplicateIds: [...document.querySelectorAll("[id]")]
         .map((element) => element.id)
         .filter((id, index, all) => all.indexOf(id) !== index),
-      horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth
+      horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+      visibleToggleIcons: [...document.querySelectorAll("#toggleButton .icon")]
+        .filter((icon) => getComputedStyle(icon).display !== "none").length,
+      visibleThemeIcons: [...document.querySelectorAll("#themeButton .icon")]
+        .filter((icon) => getComputedStyle(icon).display !== "none").length
     };
   });
 
@@ -392,6 +398,9 @@ try {
   }
   if (runtime.duplicateIds.length || runtime.horizontalOverflow) {
     throw new Error(`Popup structure failed: ${JSON.stringify(runtime)}`);
+  }
+  if (runtime.visibleToggleIcons !== 1 || runtime.visibleThemeIcons !== 1) {
+    throw new Error(`Icon pairs must show exactly one glyph: ${JSON.stringify(runtime)}`);
   }
 
   await popup.screenshot({ path: resolve(artifacts, "popup-light.png"), fullPage: true });
@@ -450,10 +459,9 @@ try {
   await popup.setViewport({ width: 320, height: 680 });
   const narrow = await popup.evaluate(() => ({
     horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
-    toggleHeight: document.querySelector("#toggleButton").getBoundingClientRect().height,
-    stateChipHidden: getComputedStyle(document.querySelector("#stateChip")).display === "none"
+    toggleHeight: document.querySelector("#toggleButton").getBoundingClientRect().height
   }));
-  if (narrow.horizontalOverflow || narrow.toggleHeight < 42 || !narrow.stateChipHidden) {
+  if (narrow.horizontalOverflow || narrow.toggleHeight < 42) {
     throw new Error(`Narrow popup failed: ${JSON.stringify(narrow)}`);
   }
   await popup.screenshot({ path: resolve(artifacts, "popup-narrow.png"), fullPage: true });
@@ -524,7 +532,7 @@ try {
     });
     await actionPopup.click("#toggleButton");
     await actionPopup.waitForFunction(
-      () => document.querySelector("#stateChip span")?.textContent === "Listening"
+      () => document.querySelector("#primaryStatus")?.textContent === "Subtitles are live"
     );
 
     await videoPage.waitForFunction(() => {
@@ -533,15 +541,19 @@ try {
       return caption?.classList.contains("is-visible") &&
         caption.textContent.toLowerCase().includes("best of times");
     }, { timeout: 120_000 });
-    const live = await videoPage.evaluate(() => ({
-      text: document
-        .querySelector("[data-local-subtitles-root]")
-        ?.shadowRoot?.querySelector(".caption")
-        ?.textContent.trim() ?? "",
-      videoTime: document.querySelector("video")?.currentTime ?? 0
-    }));
+    const live = await videoPage.evaluate(() => {
+      const shadow = document.querySelector("[data-local-subtitles-root]")?.shadowRoot;
+      return {
+        text: shadow?.querySelector(".caption")?.textContent.trim() ?? "",
+        statusPillVisible: Boolean(shadow?.querySelector(".status")?.classList.contains("is-visible")),
+        videoTime: document.querySelector("video")?.currentTime ?? 0
+      };
+    });
+    if (live.statusPillVisible) {
+      throw new Error("The overlay status pill must stay hidden while captions are flowing.");
+    }
     const state = await actionPopup.evaluate(() => ({
-      chip: document.querySelector("#stateChip span")?.textContent ?? "",
+      status: document.querySelector("#primaryStatus")?.textContent ?? "",
       button: document.querySelector("#toggleButton span")?.textContent ?? "",
       stateChanges: globalThis.__subtitleStateChanges ?? 0
     }));
@@ -549,7 +561,7 @@ try {
     await videoPage.screenshot({ path: resolve(artifacts, "video-live-capture.png"), fullPage: true });
     await actionPopup.click("#toggleButton");
     await actionPopup.waitForFunction(
-      () => document.querySelector("#stateChip span")?.textContent === "Ready"
+      () => document.querySelector("#primaryStatus")?.textContent === "Ready for a video"
     );
     capture.stopped = true;
     await actionPopup.close();

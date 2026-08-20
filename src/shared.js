@@ -11,11 +11,8 @@ export const IDLE_STATE = Object.freeze({
   tabId: null,
   tabTitle: "",
   progress: null,
-  progressFile: "",
   message: "Ready for a video",
   videoDetected: false,
-  engine: "Moonshine Tiny Streaming",
-  passMs: null,
   error: "",
   updatedAt: 0
 });
@@ -52,10 +49,6 @@ export function normalizeState(value = {}) {
     progress:
       typeof value.progress === "number"
         ? Math.min(1, Math.max(0, value.progress))
-        : null,
-    passMs:
-      typeof value.passMs === "number" && value.passMs >= 0
-        ? value.passMs
         : null
   };
 }
@@ -81,13 +74,6 @@ export function captionLifetime(text, final) {
   return Math.min(7000, Math.max(2800, readingTime));
 }
 
-export function formatBytes(bytes) {
-  if (!Number.isFinite(bytes) || bytes < 0) return "";
-  if (bytes < 1024) return `${Math.round(bytes)} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
 export function shouldPublishProgress({
   now,
   previousAt,
@@ -102,18 +88,10 @@ export function shouldPublishProgress({
   return now - previousAt >= 250;
 }
 
-export function phaseLabel(phase) {
-  const labels = {
-    idle: "Ready",
-    starting: "Starting",
-    capturing: "Opening audio",
-    downloading: "Downloading",
-    warming: "Warming up",
-    listening: "Listening",
-    stopping: "Stopping",
-    error: "Needs attention"
-  };
-  return labels[phase] ?? "Ready";
+// Entering the behind state needs a clearly late queue and leaving it needs a
+// nearly drained one, so the catch-up notice cannot flap near one threshold.
+export function catchUpTransition(queuedSeconds, behind) {
+  return behind ? queuedSeconds > 0.8 : queuedSeconds > 2.5;
 }
 
 export function phaseTone(phase) {
@@ -123,8 +101,4 @@ export function phaseTone(phase) {
   }
   if (phase === "error") return "coral";
   return "neutral";
-}
-
-export function isBusyPhase(phase) {
-  return ["starting", "capturing", "downloading", "warming", "stopping"].includes(phase);
 }

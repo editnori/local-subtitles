@@ -3,7 +3,6 @@ import {
   IDLE_STATE,
   normalizeSettings,
   normalizeState,
-  phaseLabel,
   phaseTone
 } from "./shared.js";
 
@@ -19,29 +18,24 @@ const ACTIVE_PHASES = new Set([
 ]);
 
 const elements = {
-  stateChip: document.getElementById("stateChip"),
+  card: document.getElementById("listenCard"),
   primaryStatus: document.getElementById("primaryStatus"),
   statusDetail: document.getElementById("statusDetail"),
-  signal: document.getElementById("signal"),
   download: document.getElementById("download"),
+  downloadTrack: document.getElementById("downloadTrack"),
   downloadBar: document.getElementById("downloadBar"),
   downloadLabel: document.getElementById("downloadLabel"),
   error: document.getElementById("errorMessage"),
   toggle: document.getElementById("toggleButton"),
-  videoFact: document.getElementById("videoFact"),
   size: document.getElementById("sizeControl"),
   position: document.getElementById("positionControl"),
   opacity: document.getElementById("opacityControl"),
   opacityValue: document.getElementById("opacityValue"),
   partial: document.getElementById("partialControl"),
-  theme: document.getElementById("themeButton"),
-  moonIcon: document.querySelector(".moon-icon"),
-  sunIcon: document.querySelector(".sun-icon"),
-  engineDetail: document.getElementById("engineDetail")
+  theme: document.getElementById("themeButton")
 };
 
 const hasExtensionApi = Boolean(globalThis.chrome?.runtime?.id);
-const stateStore = hasExtensionApi ? chrome.storage.session ?? chrome.storage.local : null;
 
 let state = normalizeState(IDLE_STATE);
 let settings = normalizeSettings(DEFAULT_SETTINGS);
@@ -54,8 +48,6 @@ function applyTheme() {
     settings.theme === "dark" ||
     (settings.theme === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
   document.documentElement.className = dark ? "theme-dark" : "theme-light";
-  elements.moonIcon.hidden = dark;
-  elements.sunIcon.hidden = !dark;
   elements.theme.setAttribute("aria-label", dark ? "Switch to light theme" : "Switch to dark theme");
 }
 
@@ -72,74 +64,69 @@ function activeOnCurrentTab() {
 function detailText() {
   if (state.phase === "idle") {
     return state.videoDetected
-      ? "The largest video is ready. Audio will stay on this device."
+      ? "The largest video is ready. Audio stays on this device."
       : "Start a video in this tab, then turn subtitles on.";
   }
   if (state.phase === "downloading") {
-    return "Subtitles begin at Listening. The model is saved for later runs.";
+    return "One-time download. Subtitles start as soon as it finishes.";
   }
   if (state.phase === "warming") {
-    return "The local engine is opening the cached model.";
+    return "Almost ready. Audio stays on this device.";
   }
   if (state.phase === "listening") {
     return state.videoDetected
-      ? "Subtitles will follow the largest playing video."
-      : "Listening to tab audio; subtitles will use the bottom of the page.";
+      ? "Subtitles follow the largest playing video."
+      : "No video found yet, so subtitles will use the bottom of the page.";
   }
-  if (state.phase === "error") return "The tab audio session did not start.";
-  return "Keep this video playing while the local engine gets ready.";
+  if (state.phase === "error") return "Try again once the video is playing.";
+  return "Keep the video playing while the local engine gets ready.";
 }
 
 function render() {
-  const chipText = elements.stateChip.querySelector("span");
-  chipText.textContent = phaseLabel(state.phase);
-  elements.stateChip.dataset.tone = phaseTone(state.phase);
+  const anyActive = state.tabId !== null && ACTIVE_PHASES.has(state.phase);
+  const elsewhere = anyActive && !activeOnCurrentTab();
 
-  elements.primaryStatus.textContent = state.message || "Ready for a video";
-  elements.statusDetail.textContent = detailText();
-  elements.signal.classList.toggle("is-live", state.phase === "listening");
+  elements.card.dataset.tone = phaseTone(state.phase);
+  elements.primaryStatus.textContent = elsewhere
+    ? "Subtitles are on in another tab"
+    : state.message || "Ready for a video";
+  elements.statusDetail.textContent = elsewhere
+    ? (state.tabTitle
+        ? `They are following “${state.tabTitle}”.`
+        : "Stop them to start subtitles here.")
+    : detailText();
 
   const showProgress = state.phase === "downloading";
   elements.download.hidden = !showProgress;
   if (showProgress) {
-    elements.downloadBar.style.width = `${Math.round((state.progress ?? 0) * 100)}%`;
-    const file = state.progressFile ? state.progressFile.split("/").at(-1) : "model files";
-    elements.downloadLabel.textContent = state.progress === null
-      ? `Downloading ${file}`
-      : `${Math.round(state.progress * 100)}% · ${file}`;
+    const percent = state.progress === null ? null : Math.round(state.progress * 100);
+    elements.downloadBar.style.width = `${percent ?? 0}%`;
+    elements.downloadLabel.textContent = percent === null ? "Starting" : `${percent}%`;
+    if (percent === null) {
+      elements.downloadTrack.removeAttribute("aria-valuenow");
+    } else {
+      elements.downloadTrack.setAttribute("aria-valuenow", String(percent));
+    }
   }
 
   elements.error.hidden = !state.error;
   elements.error.textContent = state.error;
 
-  const current = activeOnCurrentTab();
-  const anyActive = state.tabId !== null && ACTIVE_PHASES.has(state.phase);
-  const shouldStop = current || (anyActive && state.phase !== "stopping");
-  elements.toggle.classList.toggle("is-stop", shouldStop);
-  elements.toggle.querySelector(".play-icon").hidden = shouldStop;
-  elements.toggle.querySelector(".stop-icon").hidden = !shouldStop;
-  elements.toggle.querySelector("span").textContent = shouldStop
-    ? "Stop subtitles"
-    : anyActive
-      ? "Use this tab"
-      : state.phase === "error"
-        ? "Try again"
-        : "Start subtitles";
+  elements.toggle.classList.toggle("is-stop", anyActive);
+  elements.toggle.querySelector("span").textContent = anyActive
+    ? state.phase === "stopping"
+      ? "Stopping"
+      : "Stop subtitles"
+    : state.phase === "error"
+      ? "Try again"
+      : "Start subtitles";
   elements.toggle.disabled = actionPending || state.phase === "stopping";
-
-  const factDot = elements.videoFact.querySelector("i");
-  const factText = elements.videoFact.querySelector("b");
-  factDot.classList.toggle("live", state.videoDetected);
-  factText.textContent = state.videoDetected ? "Video found" : "No video yet";
 
   setPressed(elements.size, settings.captionSize);
   setPressed(elements.position, settings.captionPosition);
   elements.opacity.value = String(settings.backgroundOpacity);
   elements.opacityValue.value = `${settings.backgroundOpacity}%`;
   elements.partial.checked = settings.showPartials;
-  elements.engineDetail.textContent = state.passMs
-    ? `WASM SIMD · ${Math.round(state.passMs)} ms pass`
-    : "WASM SIMD · local CPU";
   applyTheme();
 }
 
